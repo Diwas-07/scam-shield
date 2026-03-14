@@ -1,12 +1,25 @@
 import Link from 'next/link'
 import { Shield, AlertTriangle, BarChart3, BookOpen, ArrowRight, TrendingUp, Users, Globe } from 'lucide-react'
 
-const stats = [
-  { value: '1,847', label: 'Reports This Month', icon: AlertTriangle },
-  { value: 'RM 2.34M', label: 'Total Losses Tracked', icon: TrendingUp },
-  { value: '12', label: 'Scam Types Monitored', icon: Globe },
-  { value: '432', label: 'Cases Resolved', icon: Users },
-]
+async function getStats() {
+  try {
+    const { GET } = await import('@/app/api/stats/route')
+    const res = await GET()
+    return res.json()
+  } catch {
+    return null
+  }
+}
+
+async function getRecentReports(limit = 7) {
+  try {
+    const { fetchReports } = await import('@/app/api/reports/route')
+    const data = await fetchReports({ limit })
+    return data.reports ?? []
+  } catch {
+    return []
+  }
+}
 
 const features = [
   {
@@ -43,14 +56,20 @@ const features = [
   },
 ]
 
-const recentAlerts = [
-  { type: 'Investment Fraud', platform: 'WhatsApp', time: '2 hrs ago', severity: 'high' },
-  { type: 'Phishing Email', platform: 'Email', time: '4 hrs ago', severity: 'high' },
-  { type: 'Fake Job Offer', platform: 'Telegram', time: '6 hrs ago', severity: 'medium' },
-  { type: 'Online Shopping', platform: 'Instagram', time: '8 hrs ago', severity: 'medium' },
-]
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [data, recentReports] = await Promise.all([getStats(), getRecentReports()])
+
+  const totalReports = data?.totalReports ?? 0
+  const totalLoss = data?.totalLoss ?? 0
+  const resolvedCases = data?.resolvedCases ?? 0
+
+  const stats = [
+    { value: totalReports.toLocaleString(), label: 'Reports This Month', icon: AlertTriangle },
+    { value: `RM ${(totalLoss / 1_000_000).toFixed(2)}M`, label: 'Total Losses Tracked', icon: TrendingUp },
+    { value: '12', label: 'Scam Types Monitored', icon: Globe },
+    { value: resolvedCases.toLocaleString(), label: 'Cases Resolved', icon: Users },
+  ]
   return (
     <div className="min-h-screen grid-bg">
       {/* Hero Section */}
@@ -66,7 +85,7 @@ export default function HomePage() {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 font-mono text-xs"
             style={{ background: 'rgba(200, 255, 0, 0.08)', border: '1px solid rgba(200, 255, 0, 0.2)', color: '#C8FF00' }}>
             <span className="w-2 h-2 rounded-full bg-acid animate-pulse" />
-            SYSTEM ACTIVE — 1,847 incidents catalogued
+            SYSTEM ACTIVE — {totalReports.toLocaleString()} incidents catalogued
           </div>
 
           <h1 className="font-display font-black text-6xl leading-none text-frost mb-6">
@@ -77,7 +96,7 @@ export default function HomePage() {
           
           <p className="text-muted-light text-xl max-w-2xl leading-relaxed mb-10">
             A centralized platform to report, track, and understand online scams in real-time. 
-            Built for communities, powered by AWS RDS, deployed for impact.
+            Built for communities, powered by RDS MySQL on EC2, deployed for impact.
           </p>
 
           <div className="flex items-center gap-4 flex-wrap">
@@ -169,14 +188,16 @@ export default function HomePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentAlerts.map((alert, i) => (
-                    <tr key={i}>
-                      <td className="text-frost font-medium">{alert.type}</td>
-                      <td className="text-muted-light">{alert.platform}</td>
-                      <td className="text-muted font-mono text-xs">{alert.time}</td>
+                  {recentReports.map((r: any) => (
+                    <tr key={r.id}>
+                      <td className="text-frost font-medium">{r.scamType}</td>
+                      <td className="text-muted-light">{r.platform}</td>
+                      <td className="text-muted font-mono text-xs">
+                        {new Date(r.reportedAt).toLocaleString('en-MY', { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
                       <td>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-mono badge-${alert.severity}`}>
-                          {alert.severity.toUpperCase()}
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-mono badge-${r.severity}`}>
+                          {r.severity.toUpperCase()}
                         </span>
                       </td>
                     </tr>

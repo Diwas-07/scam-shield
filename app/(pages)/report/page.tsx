@@ -189,7 +189,7 @@ export default function ReportPage() {
                       <button
                         key={type}
                         onClick={() => update('scamType', type)}
-                        className={`p-2.5 rounded-lg text-xs text-left transition-all ${
+                        className={`p-2.5 cursor-pointer rounded-lg text-xs text-left transition-all ${
                           form.scamType === type 
                             ? 'bg-acid/15 border border-acid/40 text-acid' 
                             : 'bg-ink-soft border border-ink-border text-muted hover:border-acid/20 hover:text-muted-light'
@@ -211,7 +211,7 @@ export default function ReportPage() {
                       <button
                         key={p}
                         onClick={() => update('platform', p)}
-                        className={`p-2 rounded-lg text-xs transition-all ${
+                        className={`p-2 cursor-pointer rounded-lg text-xs transition-all ${
                           form.platform === p 
                             ? 'bg-acid/15 border border-acid/40 text-acid' 
                             : 'bg-ink-soft border border-ink-border text-muted hover:border-acid/20'
@@ -227,7 +227,7 @@ export default function ReportPage() {
                 <div>
                   <label className="block text-xs font-mono text-muted uppercase tracking-wider mb-2">
                     Description <span className="text-signal">*</span>
-                    <span className="text-ink-border ml-2">(min 30 chars)</span>
+                    <span className="ml-2">(min 30 chars)</span>
                   </label>
                   <textarea
                     className="input-dark w-full rounded-xl p-3 text-sm resize-none"

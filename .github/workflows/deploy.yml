@@ -34,7 +34,7 @@ jobs:
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: 1
 
-      - name: Setup swap + Deploy to EC2
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -47,43 +47,13 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-            echo "=== Setting up swap ==="
-            if ! swapon --show | grep -q /swapfile; then
-              sudo dd if=/dev/zero of=/swapfile bs=128M count=16
-              sudo chmod 600 /swapfile
-              sudo mkswap /swapfile
-              sudo swapon /swapfile
-              echo "Swap created"
-            else
-              echo "Swap already exists"
-            fi
-
-            echo "=== Cloning or pulling latest code ==="
-            cd /home/${{ secrets.EC2_USER }}
-
-            if [ ! -d "scam-shield" ]; then
-              echo "Folder not found, cloning fresh..."
-              git clone https://github.com/Diwas-07/scam-shield.git
-            fi
-
-            cd scam-shield
+            echo "=== Pulling latest code ==="
+            cd ~/scam-shield
             git fetch origin main
             git reset --hard origin/main
 
-            echo "=== Writing .env file ==="
-            cat > .env << EOF
-            USE_MOCK_DATA=${{ secrets.USE_MOCK_DATA }}
-            RDS_HOST=${{ secrets.RDS_HOST }}
-            RDS_PORT=${{ secrets.RDS_PORT }}
-            RDS_DATABASE=${{ secrets.RDS_DATABASE }}
-            RDS_USER=${{ secrets.RDS_USER }}
-            RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}
-            NODE_ENV=production
-            NEXT_TELEMETRY_DISABLED=1
-            EOF
-
             echo "=== Installing dependencies ==="
-            npm ci --omit=dev
+            npm ci
 
             echo "=== Building app ==="
             npm run build
