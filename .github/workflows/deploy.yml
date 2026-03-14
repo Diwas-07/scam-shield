@@ -41,8 +41,9 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/ec2-user/scam-shield
+            git checkout -- package.json package-lock.json || true
             git pull origin main
-            npm ci --omit=dev
+            npm install
             npm run build
             pm2 restart scam-shield || pm2 start npm --name "scam-shield" -- start
             pm2 save
