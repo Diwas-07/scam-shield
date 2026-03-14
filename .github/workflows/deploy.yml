@@ -41,9 +41,22 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/ec2-user/scam-shield
+            # Reset changes in package files to avoid merge conflicts
             git checkout -- package.json package-lock.json || true
             git pull origin main
-            npm install
+
+            # Install any new dependencies
+            npm ci
+
+            # Build production version
             npm run build
-            pm2 restart scam-shield || pm2 start npm --name "scam-shield" -- start
+
+            # Restart PM2 process or start if it doesn't exist
+            if pm2 list | grep -q scam-shield; then
+              pm2 restart scam-shield --update-env
+            else
+              pm2 start npm --name "scam-shield" -- start
+            fi
+
+            # Save PM2 process list
             pm2 save
