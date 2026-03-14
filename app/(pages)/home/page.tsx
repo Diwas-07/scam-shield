@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { NextRequest } from 'next/server'
 import { Shield, AlertTriangle, BarChart3, BookOpen, ArrowRight, TrendingUp, Users, Globe } from 'lucide-react'
 
 async function getStats() {
@@ -13,8 +14,10 @@ async function getStats() {
 
 async function getRecentReports(limit = 7) {
   try {
-    const { fetchReports } = await import('@/app/api/reports/route')
-    const data = await fetchReports({ limit })
+    const { GET } = await import('@/app/api/reports/route')
+    const url = new URL(`http://n/?limit=${limit}&page=1`)
+    const res = await GET(new NextRequest(url))
+    const data = await res.json()
     return data.reports ?? []
   } catch {
     return []

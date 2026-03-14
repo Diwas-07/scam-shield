@@ -1,8 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { BarChart3, TrendingUp, AlertTriangle, DollarSign, Users, CheckCircle } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { BarChart3, TrendingUp, AlertTriangle, DollarSign, Users, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts'
 import StatCard from '@/components/StatCard'
+
+const PAGE_SIZE = 10
 
 const COLORS = ['#C8FF00', '#FF3B5C', '#FF9500', '#00D68F', '#A78BFA', '#60A5FA', '#F472B6', '#34D399']
 
@@ -13,7 +15,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p className="font-mono text-muted mb-1">{label}</p>
         {payload.map((p: any, i: number) => (
           <p key={i} style={{ color: p.color }} className="font-medium">
-            {p.name}: {typeof p.value === 'number' && p.name?.includes('loss')
+            {p.name}: {typeof p.value === 'number' && String(p.name).includes('loss')
               ? `RM ${p.value.toLocaleString()}`
               : p.value}
           </p>
@@ -41,27 +43,44 @@ function StatCardSkeleton() {
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null)
   const [reports, setReports] = useState<any[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [reportsLoading, setReportsLoading] = useState(true)
+  const cache = useRef<Map<number, { reports: any[]; total: number }>>(new Map())
 
+  // Fetch stats once
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [statsRes, reportsRes] = await Promise.all([
-          fetch('/api/stats'),
-          fetch('/api/reports?limit=8'),
-        ])
-        const statsData = await statsRes.json()
-        const reportsData = await reportsRes.json()
-        setStats(statsData)
-        setReports(reportsData.reports || [])
-      } catch {
-        // keep loading false so UI doesn't hang
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
+    fetch('/api/stats')
+      .then(r => r.json())
+      .then(setStats)
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
+
+  // Fetch reports when page changes, use cache if available
+  useEffect(() => {
+    const cached = cache.current.get(page)
+    if (cached) {
+      setReports(cached.reports)
+      setTotal(cached.total)
+      return
+    }
+    setReportsLoading(true)
+    fetch(`/api/reports?limit=${PAGE_SIZE}&page=${page}`)
+      .then(r => r.json())
+      .then(data => {
+        const reports = data.reports || []
+        const total = data.total || 0
+        cache.current.set(page, { reports, total })
+        setReports(reports)
+        setTotal(total)
+      })
+      .catch(() => {})
+      .finally(() => setReportsLoading(false))
+  }, [page])
+
+  const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
     <div className="p-8 min-h-screen grid-bg">
@@ -197,21 +216,26 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Reports Table */}
+      {/* Reports Table with Pagination */}
       <div className="card-dark rounded-2xl overflow-hidden">
         <div className="p-5 border-b border-ink-border flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="pulse-dot" />
-            <h3 className="font-display font-bold text-frost">Recent Reports</h3>
+            <h3 className="font-display font-bold text-frost">Reports</h3>
+            {!reportsLoading && (
+              <span className="text-xs font-mono text-muted">
+                {total.toLocaleString()} total
+              </span>
+            )}
           </div>
           <a href="/report" className="btn-acid px-4 py-2 rounded-lg text-xs font-display uppercase tracking-wide">
             + New Report
           </a>
         </div>
         <div className="overflow-x-auto">
-          {loading ? (
+          {reportsLoading ? (
             <div className="p-5 space-y-3">
-              {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              {Array.from({ length: PAGE_SIZE }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
             </div>
           ) : (
             <table className="w-full table-dark">
@@ -263,6 +287,31 @@ export default function DashboardPage() {
             </table>
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-ink-border flex items-center justify-between">
+            <span className="text-xs font-mono text-muted">
+              Page {page} of {totalPages}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => p - 1)}
+                disabled={page <= 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-light hover:text-acid hover:bg-acid/5"
+              >
+                <ChevronLeft size={14} /> Prev
+              </button>
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={page >= totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-light hover:text-acid hover:bg-acid/5"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
