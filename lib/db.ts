@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise'
+import type { ScamType } from '@/lib/constants'
 
 const pool = mysql.createPool({
   host: process.env.RDS_HOST,
@@ -13,7 +14,7 @@ const pool = mysql.createPool({
 
 export default pool
 
-export type { ScamType } from '@/lib/constants'
+export type { ScamType }
 
 export interface ScamReport {
   id: string
