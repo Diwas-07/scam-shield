@@ -77,7 +77,7 @@ export default function HomePage() {
           
           <p className="text-muted-light text-xl max-w-2xl leading-relaxed mb-10">
             A centralized platform to report, track, and understand online scams in real-time. 
-            Built for communities, powered by AWS DynamoDB, deployed for impact.
+            Built for communities, powered by AWS RDS, deployed for impact.
           </p>
 
           <div className="flex items-center gap-4 flex-wrap">
@@ -229,12 +229,12 @@ export default function HomePage() {
                 <div className="font-mono text-xs text-acid mb-1 tracking-wider">AWS CLOUD ARCHITECTURE</div>
                 <h3 className="font-display font-bold text-frost mb-2">Production-Ready Cloud Infrastructure</h3>
                 <p className="text-muted text-sm leading-relaxed max-w-3xl">
-                  ScamShield leverages AWS DynamoDB for scalable, serverless database storage of scam reports. 
-                  The Next.js application is containerized and deployed via AWS Elastic Beanstalk or EC2 for 
+                  ScamShield leverages AWS RDS (MySQL) for reliable, scalable database storage of scam reports. 
+                  The Next.js application is containerized and deployed via AWS EC2 for 
                   high availability. All API routes are secured and data is encrypted at rest.
                 </p>
                 <div className="flex items-center gap-6 mt-4 flex-wrap">
-                  {['AWS DynamoDB', 'Elastic Beanstalk / EC2', 'Next.js 14', 'TypeScript'].map(tech => (
+                  {['AWS RDS', 'EC2', 'Next.js 14', 'TypeScript'].map(tech => (
                     <span key={tech} className="text-xs font-mono text-muted-light px-2 py-1 rounded-md"
                       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid #1E1E2A' }}>
                       {tech}

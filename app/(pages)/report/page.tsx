@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { AlertTriangle, CheckCircle, Shield, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { SCAM_TYPES } from '@/lib/dynamodb'
+import { SCAM_TYPES } from '@/lib/constants'
 
 const platforms = [
   'WhatsApp', 'Facebook', 'Instagram', 'Telegram', 'Email', 'Phone/SMS',
@@ -103,7 +103,7 @@ export default function ReportPage() {
             <h4 className="font-display font-semibold text-frost mb-3 text-sm">What happens next?</h4>
             <div className="space-y-3">
               {[
-                { title: 'Review', desc: 'Your report is logged in AWS DynamoDB and queued for review.' },
+                { title: 'Review', desc: 'Your report is logged in AWS RDS and queued for review.' },
                 { title: 'Analysis', desc: 'Our system cross-references this with other reports for pattern detection.' },
                 { title: 'Action', desc: 'Verified patterns are escalated to relevant authorities.' },
               ].map(({ title, desc }, i) => (
@@ -142,7 +142,7 @@ export default function ReportPage() {
       <div className="mb-8">
         <div className="font-mono text-xs text-signal tracking-wider mb-2">INCIDENT REPORTING</div>
         <h1 className="font-display font-black text-4xl text-frost">Report a Scam</h1>
-        <p className="text-muted-light mt-1 text-sm">Stored securely in AWS DynamoDB. Anonymous reporting available.</p>
+        <p className="text-muted-light mt-1 text-sm">Stored securely in AWS RDS. Anonymous reporting available.</p>
       </div>
 
       <div>
@@ -403,7 +403,7 @@ export default function ReportPage() {
                   style={{ background: 'rgba(200, 255, 0, 0.04)', border: '1px solid rgba(200, 255, 0, 0.08)' }}>
                   <Shield size={16} className="text-acid flex-shrink-0" />
                   <p className="text-xs text-muted">
-                    Data is encrypted and stored in AWS DynamoDB (ap-southeast-1). No personally identifiable 
+                    Data is encrypted and stored in AWS RDS. No personally identifiable 
                     information is shared publicly.
                   </p>
                 </div>

@@ -29,6 +29,43 @@ export async function GET() {
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const reportedThisWeek = reports.filter((r: any) => r.reported_at > oneWeekAgo).length
 
+    // Platform breakdown
+    const platformCounts: Record<string, number> = {}
+    reports.forEach((r: any) => {
+      platformCounts[r.platform] = (platformCounts[r.platform] || 0) + 1
+    })
+    const platformBreakdown = Object.entries(platformCounts)
+      .map(([platform, count]) => ({
+        platform, count,
+        percentage: reports.length > 0 ? Math.round((count / reports.length) * 100 * 10) / 10 : 0,
+      }))
+      .sort((a, b) => b.count - a.count)
+
+    // Age breakdown
+    const ageCounts: Record<string, number> = {}
+    reports.forEach((r: any) => {
+      const group = r.victim_age || 'Unknown'
+      ageCounts[group] = (ageCounts[group] || 0) + 1
+    })
+    const ageBreakdown = Object.entries(ageCounts)
+      .map(([group, count]) => ({
+        group, count,
+        percentage: reports.length > 0 ? Math.round((count / reports.length) * 100 * 10) / 10 : 0,
+      }))
+      .sort((a, b) => b.count - a.count)
+
+    // Monthly trend (last 6 months)
+    const monthlyMap: Record<string, { reports: number; loss: number }> = {}
+    reports.forEach((r: any) => {
+      const month = new Date(r.reported_at).toLocaleString('en-US', { month: 'short', year: '2-digit' })
+      if (!monthlyMap[month]) monthlyMap[month] = { reports: 0, loss: 0 }
+      monthlyMap[month].reports += 1
+      monthlyMap[month].loss += parseFloat(r.financial_loss || 0)
+    })
+    const monthlyTrend = Object.entries(monthlyMap)
+      .map(([month, data]) => ({ month, ...data }))
+      .slice(-6)
+
     return NextResponse.json({
       totalReports: reports.length,
       totalLoss,
@@ -37,6 +74,9 @@ export async function GET() {
       topScamType: scamTypeBreakdown[0]?.type || 'N/A',
       resolvedCases: reports.filter((r: any) => r.status === 'verified').length,
       scamTypeBreakdown,
+      platformBreakdown,
+      ageBreakdown,
+      monthlyTrend,
     })
   } catch (error) {
     console.error('Error fetching stats:', error)
