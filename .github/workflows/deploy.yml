@@ -33,30 +33,70 @@ jobs:
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: 1
 
+      - name: Add swap space on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            # Add swap if not already present
+            if ! swapon --show | grep -q /swapfile; then
+              sudo dd if=/dev/zero of=/swapfile bs=128M count=16
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile
+              echo "Swap created and enabled"
+            else
+              echo "Swap already exists, skipping"
+            fi
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 30m
+          envs: RDS_HOST,RDS_PORT,RDS_DATABASE,RDS_USER,RDS_PASSWORD
           script: |
-            cd /home/ec2-user/scam-shield
-            # Reset changes in package files to avoid merge conflicts
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+            echo "=== Pulling latest code ==="
+            cd /home/${{ secrets.EC2_USER }}/scam-shield
+
+            # Reset any local changes to tracked files to avoid merge conflicts
             git checkout -- package.json package-lock.json || true
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
-            # Install any new dependencies
-            npm ci
+            echo "=== Installing production dependencies ==="
+            npm ci --omit=dev
 
-            # Build production version
+            echo "=== Building Next.js app ==="
+            export NODE_ENV=production
+            export NEXT_TELEMETRY_DISABLED=1
+            export RDS_HOST=${{ secrets.RDS_HOST }}
+            export RDS_PORT=${{ secrets.RDS_PORT }}
+            export RDS_DATABASE=${{ secrets.RDS_DATABASE }}
+            export RDS_USER=${{ secrets.RDS_USER }}
+            export RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}
             npm run build
 
-            # Restart PM2 process or start if it doesn't exist
-            if pm2 list | grep -q scam-shield; then
+            echo "=== Restarting PM2 ==="
+            if pm2 list | grep -q "scam-shield"; then
               pm2 restart scam-shield --update-env
             else
               pm2 start npm --name "scam-shield" -- start
             fi
 
-            # Save PM2 process list
             pm2 save
+            echo "=== Deploy complete ==="
+        env:
+          RDS_HOST: ${{ secrets.RDS_HOST }}
+          RDS_PORT: ${{ secrets.RDS_PORT }}
+          RDS_DATABASE: ${{ secrets.RDS_DATABASE }}
+          RDS_USER: ${{ secrets.RDS_USER }}
+          RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
