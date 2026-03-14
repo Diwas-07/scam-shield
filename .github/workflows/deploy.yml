@@ -22,9 +22,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
+      - name: Build on GitHub runner
         run: npm run build
         env:
+          USE_MOCK_DATA: ${{ secrets.USE_MOCK_DATA }}
           RDS_HOST: ${{ secrets.RDS_HOST }}
           RDS_PORT: ${{ secrets.RDS_PORT }}
           RDS_DATABASE: ${{ secrets.RDS_DATABASE }}
@@ -69,17 +70,22 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
+            echo "=== Writing .env file ==="
+            cat > .env << EOF
+            USE_MOCK_DATA=${{ secrets.USE_MOCK_DATA }}
+            RDS_HOST=${{ secrets.RDS_HOST }}
+            RDS_PORT=${{ secrets.RDS_PORT }}
+            RDS_DATABASE=${{ secrets.RDS_DATABASE }}
+            RDS_USER=${{ secrets.RDS_USER }}
+            RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}
+            NODE_ENV=production
+            NEXT_TELEMETRY_DISABLED=1
+            EOF
+
             echo "=== Installing dependencies ==="
             npm ci --omit=dev
 
             echo "=== Building app ==="
-            export NODE_ENV=production
-            export NEXT_TELEMETRY_DISABLED=1
-            export RDS_HOST=${{ secrets.RDS_HOST }}
-            export RDS_PORT=${{ secrets.RDS_PORT }}
-            export RDS_DATABASE=${{ secrets.RDS_DATABASE }}
-            export RDS_USER=${{ secrets.RDS_USER }}
-            export RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}
             npm run build
 
             echo "=== Restarting PM2 ==="
