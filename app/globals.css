@@ -2,6 +2,30 @@
 
 @import "tailwindcss";
 
+@theme {
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+
+  --color-ink: #0A0A0F;
+  --color-ink-soft: #13131A;
+  --color-ink-border: #1E1E2A;
+  --color-acid: #C8FF00;
+  --color-acid-dim: #A3CC00;
+  --color-signal: #FF3B5C;
+  --color-signal-dim: #CC2F49;
+  --color-warn: #FF9500;
+  --color-safe: #00D68F;
+  --color-muted: #6B7280;
+  --color-muted-light: #9CA3AF;
+  --color-frost: #E8F4F8;
+
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-scan: scan 2s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-glitch: glitch 0.3s ease-in-out;
+}
+
 :root {
   --font-display: 'Syne', sans-serif;
   --font-body: 'DM Sans', sans-serif;

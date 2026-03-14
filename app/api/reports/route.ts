@@ -79,7 +79,26 @@ export async function GET(request: NextRequest) {
     params.push(limit)
 
     const [rows]: any = await pool.query(query, params)
-    return NextResponse.json({ reports: rows, total: rows.length })
+
+    // Map snake_case DB columns to camelCase for the frontend
+    const reports = rows.map((r: any) => ({
+      id: r.id,
+      scamType: r.scam_type,
+      platform: r.platform,
+      description: r.description,
+      financialLoss: parseFloat(r.financial_loss || 0),
+      currency: r.currency,
+      victimAge: r.victim_age,
+      reportedAt: r.reported_at instanceof Date ? r.reported_at.toISOString() : String(r.reported_at),
+      severity: r.severity,
+      status: r.status,
+      contactMethod: r.contact_method,
+      evidence: r.evidence,
+      region: r.region,
+      anonymous: !!r.anonymous,
+    }))
+
+    return NextResponse.json({ reports, total: reports.length })
   } catch (error) {
     console.error('Error fetching reports:', error)
     return NextResponse.json({ error: 'Failed to fetch reports', details: String(error) }, { status: 500 })

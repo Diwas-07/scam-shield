@@ -25,9 +25,9 @@ export async function GET() {
         percentage: Math.round((count / reports.length) * 100 * 10) / 10,
       }))
       .sort((a, b) => b.count - a.count)
-
-    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-    const reportedThisWeek = reports.filter((r: any) => r.reported_at > oneWeekAgo).length
+      
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      const reportedThisWeek = reports.filter((r: any) => new Date(r.reported_at) >= oneWeekAgo).length
 
     // Platform breakdown
     const platformCounts: Record<string, number> = {}
@@ -66,6 +66,15 @@ export async function GET() {
       .map(([month, data]) => ({ month, ...data }))
       .slice(-6)
 
+    // Weekly pattern — group by day of week
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const dayCounts: Record<string, number> = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 }
+    reports.forEach((r: any) => {
+      const day = days[new Date(r.reported_at).getDay()]
+      dayCounts[day] += 1
+    })
+    const weeklyPattern = days.map(day => ({ day, reports: dayCounts[day] }))
+
     return NextResponse.json({
       totalReports: reports.length,
       totalLoss,
@@ -77,6 +86,7 @@ export async function GET() {
       platformBreakdown,
       ageBreakdown,
       monthlyTrend,
+      weeklyPattern,
     })
   } catch (error) {
     console.error('Error fetching stats:', error)
