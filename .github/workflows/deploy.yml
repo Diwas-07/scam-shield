@@ -52,6 +52,12 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
+            echo "=== Installing dependencies ==="
+            npm ci
+
+            echo "=== Building app ==="
+            npm run build
+
             echo "=== Restarting PM2 ==="
             if pm2 list | grep -q "scam-shield"; then
               pm2 restart scam-shield --update-env
