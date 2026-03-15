@@ -1,9 +1,10 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
 import { 
   Shield, BarChart3, AlertTriangle, BookOpen, 
-  TrendingUp, Home, ExternalLink, Zap
+  TrendingUp, Home, ExternalLink, Zap, LogOut, User
 } from 'lucide-react'
 
 const navItems = [
@@ -16,6 +17,7 @@ const navItems = [
 
 export default function Navbar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
 
   return (
     <aside className="fixed left-0 top-0 h-full w-60 border-r border-ink-border z-40 flex flex-col"
@@ -71,6 +73,22 @@ export default function Navbar() {
 
       {/* Footer */}
       <div className="p-4 border-t border-ink-border space-y-3">
+        {session?.user && (
+          <div className="card-dark rounded-lg p-3 mb-3">
+            <div className="flex items-center gap-2 mb-2">
+              <User size={14} className="text-acid" />
+              <span className="text-xs font-medium text-frost truncate">{session.user.name}</span>
+            </div>
+            <p className="text-xs text-muted truncate mb-2">{session.user.email}</p>
+            <button
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-signal hover:text-signal/80 transition-colors"
+            >
+              <LogOut size={12} />
+              Sign Out
+            </button>
+          </div>
+        )}
         <div className="card-dark rounded-lg p-3">
           <div className="flex items-center gap-2 mb-2">
             <Zap size={12} className="text-acid" />
