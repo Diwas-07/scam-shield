@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
+import SessionProvider from '@/components/SessionProvider'
 
 export const metadata: Metadata = {
   title: 'ScamShield — Online Scam Awareness Platform',
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="noise-texture">
         <div className="scan-line" />
-        {children}
+        <SessionProvider>
+          {children}
+        </SessionProvider>
         <Toaster
           position="bottom-right"
           toastOptions={{

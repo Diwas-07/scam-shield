@@ -13,6 +13,12 @@ const pool = mysql.createPool({
 
 export default pool
 
+// Query helper function
+export async function query(sql: string, params?: any[]) {
+  const [rows] = await pool.execute(sql, params)
+  return rows
+}
+
 export const SCAM_TYPES = [
   'Phishing Email',
   'Fake Job Offer',
