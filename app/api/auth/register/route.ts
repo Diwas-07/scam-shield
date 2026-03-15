@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     const existingUsers = await query(
       'SELECT id FROM users WHERE email = ?',
       [email]
-    )
+    ) as any[]
 
     if (existingUsers.length > 0) {
       return NextResponse.json(

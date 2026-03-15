@@ -19,7 +19,7 @@ export const authOptions: NextAuthOptions = {
         const users = await query(
           'SELECT * FROM users WHERE email = ?',
           [credentials.email]
-        )
+        ) as any[]
 
         const user = users[0]
 

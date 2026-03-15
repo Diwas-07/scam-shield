@@ -15,6 +15,8 @@ const navItems = [
   { href: '/learn', icon: BookOpen, label: 'Learn & Protect' },
 ]
 
+const adminNavItem = { href: '/admin', icon: Shield, label: 'Admin Panel', adminOnly: true }
+
 export default function Navbar() {
   const pathname = usePathname()
   const { data: session } = useSession()
@@ -69,6 +71,25 @@ export default function Navbar() {
             </Link>
           )
         })}
+        
+        {/* Admin Panel - Only for admins */}
+        {session?.user?.role === 'admin' && (
+          <>
+            <div className="border-t border-ink-border my-2" />
+            <Link
+              href={adminNavItem.href}
+              className={`nav-item flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-all ${
+                pathname.startsWith(adminNavItem.href)
+                  ? 'active text-signal bg-signal/5 border-l-signal font-medium' 
+                  : 'text-muted-light hover:text-signal'
+              }`}
+            >
+              <adminNavItem.icon size={16} className={pathname.startsWith(adminNavItem.href) ? 'text-signal' : 'text-muted'} />
+              {adminNavItem.label}
+              <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full bg-signal text-white font-mono">A</span>
+            </Link>
+          </>
+        )}
       </nav>
 
       {/* Footer */}
