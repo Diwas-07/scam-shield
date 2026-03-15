@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { AlertTriangle, CheckCircle, Shield, Info } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Shield, Info, Upload, X, Image as ImageIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { SCAM_TYPES } from '@/lib/constants'
 
@@ -27,6 +27,7 @@ interface FormData {
   contactMethod: string
   region: string
   evidence: string
+  imageUrls: string[]
   anonymous: boolean
   agreed: boolean
 }
@@ -41,6 +42,7 @@ const initialForm: FormData = {
   contactMethod: '',
   region: '',
   evidence: '',
+  imageUrls: [],
   anonymous: false,
   agreed: false,
 }
@@ -51,9 +53,61 @@ export default function ReportPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [reportId, setReportId] = useState('')
+  const [uploading, setUploading] = useState(false)
 
   const update = (field: keyof FormData, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    // Limit to 3 images
+    if (form.imageUrls.length + files.length > 3) {
+      toast.error('Maximum 3 images allowed')
+      return
+    }
+
+    setUploading(true)
+    const uploadPromises = Array.from(files).map(async (file) => {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        const data = await res.json()
+        if (data.success) {
+          return data.url
+        } else {
+          throw new Error(data.error)
+        }
+      } catch (err) {
+        toast.error(`Failed to upload ${file.name}`)
+        return null
+      }
+    })
+
+    const urls = await Promise.all(uploadPromises)
+    const validUrls = urls.filter((url): url is string => url !== null)
+    
+    if (validUrls.length > 0) {
+      setForm(prev => ({ ...prev, imageUrls: [...prev.imageUrls, ...validUrls] }))
+      toast.success(`${validUrls.length} image(s) uploaded successfully`)
+    }
+    
+    setUploading(false)
+    e.target.value = '' // Reset input
+  }
+
+  const removeImage = (index: number) => {
+    setForm(prev => ({
+      ...prev,
+      imageUrls: prev.imageUrls.filter((_, i) => i !== index)
+    }))
   }
 
   const validateStep = () => {
@@ -279,6 +333,82 @@ export default function ReportPage() {
                     onChange={e => update('evidence', e.target.value)}
                   />
                 </div>
+
+                {/* Image Upload */}
+                <div>
+                  <label className="block text-xs font-mono text-muted uppercase tracking-wider mb-2">
+                    Screenshots / Evidence Images <span className="text-muted">(optional, max 3)</span>
+                  </label>
+                  
+                  {/* Upload Button */}
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="image-upload"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      multiple
+                      onChange={handleImageUpload}
+                      disabled={uploading || form.imageUrls.length >= 3}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed transition-all cursor-pointer ${
+                        uploading || form.imageUrls.length >= 3
+                          ? 'border-ink-border bg-ink-soft/50 cursor-not-allowed opacity-50'
+                          : 'border-acid/30 bg-acid/5 hover:border-acid/50 hover:bg-acid/10'
+                      }`}
+                    >
+                      {uploading ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-acid/40 border-t-acid rounded-full animate-spin" />
+                          <span className="text-sm text-muted">Uploading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={18} className="text-acid" />
+                          <span className="text-sm text-muted-light">
+                            {form.imageUrls.length >= 3 
+                              ? 'Maximum 3 images reached' 
+                              : 'Click to upload images (JPEG, PNG, WebP, max 5MB each)'}
+                          </span>
+                        </>
+                      )}
+                    </label>
+                  </div>
+
+                  {/* Image Preview Grid */}
+                  {form.imageUrls.length > 0 && (
+                    <div className="grid grid-cols-3 gap-3 mt-3">
+                      {form.imageUrls.map((url, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square rounded-lg overflow-hidden bg-ink-soft border border-ink-border">
+                            <img
+                              src={url}
+                              alt={`Evidence ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-signal border border-ink flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={14} className="text-frost" />
+                          </button>
+                          <div className="absolute bottom-2 left-2 right-2 bg-ink/80 backdrop-blur-sm rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <p className="text-xs text-frost font-mono truncate">Image {index + 1}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="text-xs text-muted mt-2 flex items-center gap-1.5">
+                    <ImageIcon size={12} />
+                    Images are securely stored in AWS S3 and will be reviewed by moderators
+                  </p>
+                </div>
               </>
             )}
 
@@ -381,6 +511,23 @@ export default function ReportPage() {
                     <div className="text-muted text-xs mb-1">Description</div>
                     <div className="text-sm text-muted-light leading-relaxed">{form.description}</div>
                   </div>
+                  
+                  {form.imageUrls.length > 0 && (
+                    <div className="pt-2 border-t border-ink-border">
+                      <div className="text-muted text-xs mb-2">Evidence Images ({form.imageUrls.length})</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {form.imageUrls.map((url, index) => (
+                          <div key={index} className="aspect-square rounded-lg overflow-hidden bg-ink-soft border border-ink-border">
+                            <img
+                              src={url}
+                              alt={`Evidence ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-4 rounded-xl"

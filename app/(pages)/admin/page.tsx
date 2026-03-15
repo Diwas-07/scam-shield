@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { Shield, Users, AlertTriangle, Settings, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Shield, Users, AlertTriangle, Settings, Trash2, ChevronLeft, ChevronRight, Image as ImageIcon, X, ChevronDown, ChevronUp } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const PAGE_SIZE = 10
@@ -31,6 +31,7 @@ interface Report {
   evidence?: string
   region?: string
   anonymous: boolean
+  imageUrls?: string[]
 }
 
 interface UsersResponse {
@@ -68,6 +69,8 @@ export default function AdminPage() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'users' | 'reports' | 'settings'>('users')
   const [reportsPage, setReportsPage] = useState(1)
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null)
+  const [imageModalUrl, setImageModalUrl] = useState<string | null>(null)
 
   // Redirect if not admin
   if (status === 'authenticated' && session?.user?.role !== 'admin') {
@@ -411,7 +414,7 @@ export default function AdminPage() {
           </div>
           <div className="overflow-x-auto">
             {reportsLoading ? (
-              <TableSkeleton rows={PAGE_SIZE} cols={7} />
+              <TableSkeleton rows={PAGE_SIZE} cols={8} />
             ) : (
               <table className="w-full table-dark">
                 <thead>
@@ -420,51 +423,115 @@ export default function AdminPage() {
                     <th className="text-left">Type</th>
                     <th className="text-left">Platform</th>
                     <th className="text-left">Loss</th>
+                    <th className="text-left">Images</th>
                     <th className="text-left">Status</th>
                     <th className="text-left">Reported</th>
                     <th className="text-left">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {reports.map((report) => (
-                    <tr key={report.id}>
-                      <td className="font-mono text-muted text-xs">{report.id.slice(0, 8)}</td>
-                      <td className="text-frost">{report.scamType}</td>
-                      <td className="text-muted-light">{report.platform}</td>
-                      <td className="font-mono text-warn">
-                        {report.financialLoss > 0 ? `RM ${report.financialLoss.toLocaleString()}` : '—'}
-                      </td>
-                      <td>
-                        <select
-                          value={report.status}
-                          onChange={(e) => updateReportStatus(report.id, e.target.value)}
-                          className="bg-ink-border text-frost text-xs px-2 py-1 rounded border border-ink-border focus:border-acid focus:outline-none"
-                          disabled={updateReportStatusMutation.isPending}
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="verified">Verified</option>
-                          <option value="investigating">Investigating</option>
-                          <option value="resolved">Resolved</option>
-                          <option value="rejected">Rejected</option>
-                        </select>
-                      </td>
-                      <td className="text-muted font-mono text-xs">
-                        {new Date(report.reportedAt).toLocaleDateString()}
-                      </td>
-                      <td>
-                        <button
-                          onClick={() => deleteReport(report.id)}
-                          disabled={deleteReportMutation.isPending}
-                          className="text-signal hover:text-signal/80 disabled:opacity-30"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {reports.map((report) => {
+                    const isExpanded = expandedReportId === report.id
+                    const hasImages = report.imageUrls && report.imageUrls.length > 0
+                    
+                    return (
+                      <>
+                        <tr key={report.id} className={isExpanded ? 'bg-ink-soft/50' : ''}>
+                          <td className="font-mono text-muted text-xs">{report.id.slice(0, 8)}</td>
+                          <td className="text-frost">{report.scamType}</td>
+                          <td className="text-muted-light">{report.platform}</td>
+                          <td className="font-mono text-warn">
+                            {report.financialLoss > 0 ? `RM ${report.financialLoss.toLocaleString()}` : '—'}
+                          </td>
+                          <td>
+                            {hasImages ? (
+                              <button
+                                onClick={() => setExpandedReportId(isExpanded ? null : report.id)}
+                                className="flex cursor-pointer items-center gap-1.5 text-acid hover:text-acid/80 text-xs"
+                              >
+                                <ImageIcon size={14} />
+                                <span>{report.imageUrls?.length || 0}</span>
+                                {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                              </button>
+                            ) : (
+                              <span className="text-muted text-xs">—</span>
+                            )}
+                          </td>
+                          <td>
+                            <select
+                              value={report.status}
+                              onChange={(e) => updateReportStatus(report.id, e.target.value)}
+                              className="bg-ink-border text-frost text-xs px-2 py-1 rounded border border-ink-border focus:border-acid focus:outline-none"
+                              disabled={updateReportStatusMutation.isPending}
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="verified">Verified</option>
+                              <option value="investigating">Investigating</option>
+                              <option value="resolved">Resolved</option>
+                              <option value="rejected">Rejected</option>
+                            </select>
+                          </td>
+                          <td className="text-muted font-mono text-xs">
+                            {new Date(report.reportedAt).toLocaleDateString()}
+                          </td>
+                          <td>
+                            <button
+                              onClick={() => deleteReport(report.id)}
+                              disabled={deleteReportMutation.isPending}
+                              className="text-signal hover:text-signal/80 disabled:opacity-30"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                        
+                        {/* Expanded Row with Images */}
+                        {isExpanded && hasImages && (
+                          <tr key={`${report.id}-expanded`}>
+                            <td colSpan={8} className="bg-ink-soft/30 border-t border-ink-border">
+                              <div className="p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <ImageIcon size={14} className="text-acid" />
+                                  <span className="text-xs font-mono text-muted uppercase tracking-wider">
+                                    Evidence Images ({report.imageUrls?.length || 0})
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-3">
+                                  {report.imageUrls?.map((url, index) => (
+                                    <div
+                                      key={index}
+                                      className="relative group cursor-pointer"
+                                      onClick={() => setImageModalUrl(url)}
+                                    >
+                                      <div className="aspect-square rounded-lg overflow-hidden bg-ink border border-ink-border hover:border-acid/50 transition-colors">
+                                        <img
+                                          src={url}
+                                          alt={`Evidence ${index + 1}`}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                      <div className="absolute inset-0 bg-ink/80 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                        <span className="text-xs text-acid font-mono">Click to enlarge</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                                {report.description && (
+                                  <div className="mt-4 pt-4 border-t border-ink-border">
+                                    <div className="text-xs font-mono text-muted uppercase tracking-wider mb-2">Description</div>
+                                    <p className="text-sm text-muted-light leading-relaxed">{report.description}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    )
+                  })}
                   {reports.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="text-center text-muted py-8 font-mono text-sm">No reports found</td>
+                      <td colSpan={8} className="text-center text-muted py-8 font-mono text-sm">No reports found</td>
                     </tr>
                   )}
                 </tbody>
@@ -509,6 +576,42 @@ export default function AdminPage() {
               <p className="text-sm text-muted-light mt-2">Environment: <span className="text-acid font-mono">{process.env.NODE_ENV}</span></p>
             </div>
             <p className="text-xs text-muted">Additional settings coming soon...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Image Modal */}
+      {imageModalUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/95 backdrop-blur-sm p-4"
+          onClick={() => setImageModalUrl(null)}
+        >
+          <div className="relative max-w-5xl max-h-[90vh] w-full">
+            <button
+              onClick={() => setImageModalUrl(null)}
+              className="absolute cursor-pointer -top-4 right-0 w-10 h-10 rounded-full bg-signal/20 hover:bg-signal/30 border border-signal/40 flex items-center justify-center transition-colors"
+            >
+              <X size={20} className="text-frost" />
+            </button>
+            <div className="bg-ink-soft border-2 border-acid/20 rounded-2xl overflow-hidden">
+              <img
+                src={imageModalUrl}
+                alt="Evidence full size"
+                className="w-full h-full object-contain max-h-[85vh]"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+            <div className="text-center mt-4">
+              <a
+                href={imageModalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-acid hover:text-acid/80 font-mono"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Open in new tab →
+              </a>
+            </div>
           </div>
         </div>
       )}

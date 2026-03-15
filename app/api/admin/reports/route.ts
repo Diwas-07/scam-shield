@@ -42,6 +42,7 @@ export async function GET(request: Request) {
       evidence: r.evidence,
       region: r.region,
       anonymous: !!r.anonymous,
+      imageUrls: r.image_urls ? JSON.parse(r.image_urls) : [],
     }))
 
     return NextResponse.json({ reports: transformedReports, total, page, limit })
