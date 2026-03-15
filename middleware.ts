@@ -7,6 +7,7 @@ export async function middleware(req: NextRequest) {
   const isAuth = !!token
   const isAuthPage = req.nextUrl.pathname.startsWith('/login') || 
                      req.nextUrl.pathname.startsWith('/register')
+  const isAdminPage = req.nextUrl.pathname.startsWith('/admin')
 
   if (isAuthPage) {
     if (isAuth) {
@@ -26,9 +27,14 @@ export async function middleware(req: NextRequest) {
     )
   }
 
+  // Check admin access
+  if (isAdminPage && token.role !== 'admin') {
+    return NextResponse.redirect(new URL('/dashboard', req.url))
+  }
+
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/report/:path*', '/login', '/register']
+  matcher: ['/dashboard/:path*', '/report/:path*', '/admin/:path*', '/login', '/register']
 }

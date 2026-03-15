@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import SessionProvider from '@/components/SessionProvider'
+import QueryProvider from '@/components/QueryProvider'
 
 export const metadata: Metadata = {
   title: 'ScamShield — Online Scam Awareness Platform',
@@ -19,7 +20,9 @@ export default function RootLayout({
       <body className="noise-texture">
         <div className="scan-line" />
         <SessionProvider>
-          {children}
+          <QueryProvider>
+            {children}
+          </QueryProvider>
         </SessionProvider>
         <Toaster
           position="bottom-right"
