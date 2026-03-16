@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import pool, { ScamReport } from '@/lib/db'
 import { MOCK_REPORTS } from '@/lib/mockData'
 import { v4 as uuidv4 } from 'uuid'
+import { sendHighSeverityAlert } from '@/lib/sns'
 
 const USE_MOCK = !process.env.RDS_HOST || process.env.USE_MOCK_DATA === 'true'
 
@@ -112,6 +113,20 @@ export async function POST(request: NextRequest) {
         imageUrlsJson,
       ]
     )
+
+    // Send SNS alert for high-severity reports
+    if (report.severity === 'high') {
+      await sendHighSeverityAlert({
+        reportId: report.id,
+        scamType: report.scamType,
+        platform: report.platform,
+        financialLoss: report.financialLoss,
+        currency: report.currency,
+        severity: report.severity,
+        region: report.region,
+        description: report.description,
+      })
+    }
 
     return NextResponse.json({ success: true, report, message: 'Report saved to database' })
   } catch (error) {
