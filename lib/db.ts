@@ -51,4 +51,5 @@ export interface ScamReport {
   evidence?: string
   region?: string
   anonymous: boolean
+  imageUrls?: string[]
 }

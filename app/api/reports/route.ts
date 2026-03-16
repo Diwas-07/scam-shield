@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
       evidence: r.evidence,
       region: r.region,
       anonymous: !!r.anonymous,
+      imageUrls: r.image_urls ? JSON.parse(r.image_urls) : [],
     }))
 
     return NextResponse.json({ reports, total })
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest) {
       evidence: body.evidence,
       region: body.region,
       anonymous: body.anonymous || false,
+      imageUrls: body.imageUrls || [],
     }
 
     if (USE_MOCK) {
@@ -93,17 +95,21 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Store image URLs as JSON string
+    const imageUrlsJson = JSON.stringify(report.imageUrls)
+
     await pool.query(
       `INSERT INTO scam_reports
         (id, scam_type, platform, description, financial_loss, currency, victim_age,
-         reported_at, severity, status, contact_method, evidence, region, anonymous)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         reported_at, severity, status, contact_method, evidence, region, anonymous, image_urls)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         report.id, report.scamType, report.platform, report.description,
         report.financialLoss, report.currency, report.victimAge ?? null,
         report.reportedAt, report.severity, report.status,
         report.contactMethod ?? null, report.evidence ?? null,
         report.region ?? null, report.anonymous ? 1 : 0,
+        imageUrlsJson,
       ]
     )
 
