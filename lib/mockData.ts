@@ -1,4 +1,4 @@
-import { ScamReport } from './db'
+import { ScamReport } from './dynamodb'
 
 export const MOCK_REPORTS: ScamReport[] = [
   {

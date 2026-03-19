@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import pool, { ScamReport } from '@/lib/db'
+import { dynamodb, TABLES, ScamReport } from '@/lib/dynamodb'
+import { ScanCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
 import { MOCK_REPORTS } from '@/lib/mockData'
 import { v4 as uuidv4 } from 'uuid'
 import { sendHighSeverityAlert } from '@/lib/sns'
 
-const USE_MOCK = !process.env.RDS_HOST || process.env.USE_MOCK_DATA === 'true'
+const USE_MOCK = !process.env.AWS_ACCESS_KEY_ID || process.env.USE_MOCK_DATA === 'true'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const limit = parseInt(searchParams.get('limit') || '10')
   const page = parseInt(searchParams.get('page') || '1')
-  const offset = (page - 1) * limit
   const scamType = searchParams.get('type') ?? undefined
 
   try {
@@ -18,47 +18,31 @@ export async function GET(request: NextRequest) {
       let reports = [...MOCK_REPORTS]
       if (scamType) reports = reports.filter(r => r.scamType === scamType)
       const total = reports.length
+      const offset = (page - 1) * limit
       return NextResponse.json({ reports: reports.slice(offset, offset + limit), total, demo: true })
     }
 
-    const countParams: any[] = []
-    let countQuery = `SELECT COUNT(*) as total FROM scam_reports`
-    if (scamType) {
-      countQuery += ` WHERE scam_type = ?`
-      countParams.push(scamType)
+    // Scan DynamoDB table
+    const scanParams: any = {
+      TableName: TABLES.SCAM_REPORTS,
     }
 
-    let query = `SELECT * FROM scam_reports`
-    const params: any[] = []
     if (scamType) {
-      query += ` WHERE scam_type = ?`
-      params.push(scamType)
+      scanParams.FilterExpression = 'scamType = :scamType'
+      scanParams.ExpressionAttributeValues = { ':scamType': scamType }
     }
-    query += ` ORDER BY reported_at DESC LIMIT ? OFFSET ?`
-    params.push(limit, offset)
 
-    const [[{ total }]]: any = await pool.query(countQuery, countParams)
-    const [rows]: any = await pool.query(query, params)
+    const result = await dynamodb.send(new ScanCommand(scanParams))
+    let reports = (result.Items || []) as ScamReport[]
 
-    const reports = rows.map((r: any) => ({
-      id: r.id,
-      scamType: r.scam_type,
-      platform: r.platform,
-      description: r.description,
-      financialLoss: parseFloat(r.financial_loss || 0),
-      currency: r.currency,
-      victimAge: r.victim_age,
-      reportedAt: r.reported_at instanceof Date ? r.reported_at.toISOString() : String(r.reported_at),
-      severity: r.severity,
-      status: r.status,
-      contactMethod: r.contact_method,
-      evidence: r.evidence,
-      region: r.region,
-      anonymous: !!r.anonymous,
-      imageUrls: r.image_urls ? JSON.parse(r.image_urls) : [],
-    }))
+    // Sort by reportedAt descending
+    reports.sort((a, b) => new Date(b.reportedAt).getTime() - new Date(a.reportedAt).getTime())
 
-    return NextResponse.json({ reports, total })
+    const total = reports.length
+    const offset = (page - 1) * limit
+    const paginatedReports = reports.slice(offset, offset + limit)
+
+    return NextResponse.json({ reports: paginatedReports, total })
   } catch (error) {
     console.error('Error fetching reports:', error)
     return NextResponse.json({ error: 'Failed to fetch reports', details: String(error) }, { status: 500 })
@@ -88,30 +72,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (USE_MOCK) {
-      console.log('[DEMO] Would write to RDS:', report)
+      console.log('[DEMO] Would write to DynamoDB:', report)
       return NextResponse.json({
         success: true, report,
-        message: 'Report submitted (Demo Mode - RDS not connected)',
+        message: 'Report submitted (Demo Mode - DynamoDB not connected)',
         demo: true,
       })
     }
 
-    // Store image URLs as JSON string
-    const imageUrlsJson = JSON.stringify(report.imageUrls)
-
-    await pool.query(
-      `INSERT INTO scam_reports
-        (id, scam_type, platform, description, financial_loss, currency, victim_age,
-         reported_at, severity, status, contact_method, evidence, region, anonymous, image_urls)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [
-        report.id, report.scamType, report.platform, report.description,
-        report.financialLoss, report.currency, report.victimAge ?? null,
-        report.reportedAt, report.severity, report.status,
-        report.contactMethod ?? null, report.evidence ?? null,
-        report.region ?? null, report.anonymous ? 1 : 0,
-        imageUrlsJson,
-      ]
+    await dynamodb.send(
+      new PutCommand({
+        TableName: TABLES.SCAM_REPORTS,
+        Item: report,
+      })
     )
 
     // Send SNS alert for high-severity reports

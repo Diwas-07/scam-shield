@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { query } from '@/lib/db'
+import { dynamodb, TABLES } from '@/lib/dynamodb'
+import { ScanCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb'
 
 // GET - List all reports for moderation
 export async function GET(request: Request) {
@@ -17,35 +18,23 @@ export async function GET(request: Request) {
     const limit = Math.max(1, Math.min(100, parseInt(searchParams.get('limit') || '10', 10)))
     const offset = (page - 1) * limit
 
-    // Get total count
-    const countRows = await query('SELECT COUNT(*) as total FROM scam_reports')
-    const total = (countRows as any[])[0]?.total || 0
-
-    // Get paginated reports - use string interpolation for LIMIT/OFFSET as they're safe integers
-    const reports = await query(
-      `SELECT * FROM scam_reports ORDER BY reported_at DESC LIMIT ${limit} OFFSET ${offset}`
+    const result = await dynamodb.send(
+      new ScanCommand({
+        TableName: TABLES.SCAM_REPORTS,
+      })
     )
 
-    // Transform to camelCase for frontend
-    const transformedReports = (reports as any[]).map((r: any) => ({
-      id: r.id,
-      scamType: r.scam_type,
-      platform: r.platform,
-      description: r.description,
-      financialLoss: parseFloat(r.financial_loss || 0),
-      currency: r.currency,
-      victimAge: r.victim_age,
-      reportedAt: r.reported_at instanceof Date ? r.reported_at.toISOString() : String(r.reported_at),
-      severity: r.severity,
-      status: r.status,
-      contactMethod: r.contact_method,
-      evidence: r.evidence,
-      region: r.region,
-      anonymous: !!r.anonymous,
-      imageUrls: r.image_urls ? JSON.parse(r.image_urls) : [],
-    }))
+    const allReports = result.Items || []
+    
+    // Sort by reportedAt descending
+    const sortedReports = allReports.sort((a: any, b: any) => 
+      new Date(b.reportedAt).getTime() - new Date(a.reportedAt).getTime()
+    )
 
-    return NextResponse.json({ reports: transformedReports, total, page, limit })
+    const total = sortedReports.length
+    const reports = sortedReports.slice(offset, offset + limit)
+
+    return NextResponse.json({ reports, total, page, limit })
   } catch (error) {
     console.error('Error fetching reports:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -72,7 +61,19 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
-    await query('UPDATE scam_reports SET status = ? WHERE id = ?', [status, reportId])
+    await dynamodb.send(
+      new UpdateCommand({
+        TableName: TABLES.SCAM_REPORTS,
+        Key: { id: reportId },
+        UpdateExpression: 'SET #status = :status',
+        ExpressionAttributeNames: {
+          '#status': 'status',
+        },
+        ExpressionAttributeValues: {
+          ':status': status,
+        },
+      })
+    )
 
     return NextResponse.json({ message: 'Report status updated' })
   } catch (error) {
@@ -98,7 +99,12 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Missing reportId' }, { status: 400 })
     }
 
-    await query('DELETE FROM scam_reports WHERE id = ?', [reportId])
+    await dynamodb.send(
+      new DeleteCommand({
+        TableName: TABLES.SCAM_REPORTS,
+        Key: { id: reportId },
+      })
+    )
 
     return NextResponse.json({ message: 'Report deleted' })
   } catch (error) {

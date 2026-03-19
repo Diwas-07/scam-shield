@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { query } from '@/lib/db'
+import { dynamodb, TABLES } from '@/lib/dynamodb'
+import { ScanCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb'
 
 // GET - List all users
 export async function GET() {
@@ -12,8 +13,19 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    const users = await query(
-      'SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC'
+    const result = await dynamodb.send(
+      new ScanCommand({
+        TableName: TABLES.USERS,
+        ProjectionExpression: 'id, #name, email, #role, createdAt',
+        ExpressionAttributeNames: {
+          '#name': 'name',
+          '#role': 'role',
+        },
+      })
+    )
+
+    const users = (result.Items || []).sort((a: any, b: any) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
 
     return NextResponse.json({ users })
@@ -42,7 +54,19 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
     }
 
-    await query('UPDATE users SET role = ? WHERE id = ?', [role, userId])
+    await dynamodb.send(
+      new UpdateCommand({
+        TableName: TABLES.USERS,
+        Key: { id: userId },
+        UpdateExpression: 'SET #role = :role',
+        ExpressionAttributeNames: {
+          '#role': 'role',
+        },
+        ExpressionAttributeValues: {
+          ':role': role,
+        },
+      })
+    )
 
     return NextResponse.json({ message: 'User role updated' })
   } catch (error) {
@@ -73,7 +97,12 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 })
     }
 
-    await query('DELETE FROM users WHERE id = ?', [userId])
+    await dynamodb.send(
+      new DeleteCommand({
+        TableName: TABLES.USERS,
+        Key: { id: userId },
+      })
+    )
 
     return NextResponse.json({ message: 'User deleted' })
   } catch (error) {
