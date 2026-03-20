@@ -26,11 +26,6 @@ jobs:
         run: npm run build
         env:
           USE_MOCK_DATA: ${{ secrets.USE_MOCK_DATA }}
-          RDS_HOST: ${{ secrets.RDS_HOST }}
-          RDS_PORT: ${{ secrets.RDS_PORT }}
-          RDS_DATABASE: ${{ secrets.RDS_DATABASE }}
-          RDS_USER: ${{ secrets.RDS_USER }}
-          RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: 1
 
@@ -47,10 +42,20 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
+            # Create directory if it doesn't exist
+            mkdir -p ~/scam-shield
+
             echo "=== Pulling latest code ==="
             cd ~/scam-shield
-            git fetch origin main
-            git reset --hard origin/main
+            
+            # Check if git repo exists
+            if [ -d .git ]; then
+              git fetch origin main
+              git reset --hard origin/main
+            else
+              echo "Git repository not initialized. Please set up the project manually first."
+              exit 1
+            fi
 
             echo "=== Installing dependencies ==="
             npm ci

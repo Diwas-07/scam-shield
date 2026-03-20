@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { query } from '@/lib/db'
+import { ScanCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
+import { v4 as uuidv4 } from 'uuid'
+import { dynamodb, TABLES } from '@/lib/dynamodb'
 
 export async function POST(request: Request) {
   try {
@@ -21,12 +23,17 @@ export async function POST(request: Request) {
     }
 
     // Check if user already exists
-    const existingUsers = await query(
-      'SELECT id FROM users WHERE email = ?',
-      [email]
-    ) as any[]
+    const result = await dynamodb.send(
+      new ScanCommand({
+        TableName: TABLES.USERS,
+        FilterExpression: 'email = :email',
+        ExpressionAttributeValues: {
+          ':email': email,
+        },
+      })
+    )
 
-    if (existingUsers.length > 0) {
+    if (result.Items && result.Items.length > 0) {
       return NextResponse.json(
         { error: 'Email already registered' },
         { status: 400 }
@@ -37,9 +44,18 @@ export async function POST(request: Request) {
     const passwordHash = await bcrypt.hash(password, 10)
 
     // Create user
-    await query(
-      'INSERT INTO users (name, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, NOW())',
-      [name, email, passwordHash, 'user']
+    await dynamodb.send(
+      new PutCommand({
+        TableName: TABLES.USERS,
+        Item: {
+          id: uuidv4(),
+          name,
+          email,
+          passwordHash,
+          role: 'user',
+          createdAt: new Date().toISOString(),
+        },
+      })
     )
 
     return NextResponse.json(

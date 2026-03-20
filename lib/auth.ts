@@ -1,7 +1,8 @@
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
-import { query } from './db'
+import { dynamodb, TABLES } from './dynamodb'
+import { ScanCommand } from '@aws-sdk/lib-dynamodb'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -16,20 +17,25 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Please enter email and password')
         }
 
-        const users = await query(
-          'SELECT * FROM users WHERE email = ?',
-          [credentials.email]
-        ) as any[]
+        const result = await dynamodb.send(
+          new ScanCommand({
+            TableName: TABLES.USERS,
+            FilterExpression: 'email = :email',
+            ExpressionAttributeValues: {
+              ':email': credentials.email,
+            },
+          })
+        )
 
-        const user = users[0]
+        const user = result.Items?.[0]
 
-        if (!user || !user.password_hash) {
+        if (!user || !user.passwordHash) {
           throw new Error('Invalid email or password')
         }
 
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
-          user.password_hash
+          user.passwordHash
         )
 
         if (!isPasswordValid) {
@@ -37,7 +43,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         return {
-          id: user.id.toString(),
+          id: user.id,
           email: user.email,
           name: user.name,
           role: user.role || 'user'
