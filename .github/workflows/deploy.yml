@@ -26,11 +26,6 @@ jobs:
         run: npm run build
         env:
           USE_MOCK_DATA: ${{ secrets.USE_MOCK_DATA }}
-          RDS_HOST: ${{ secrets.RDS_HOST }}
-          RDS_PORT: ${{ secrets.RDS_PORT }}
-          RDS_DATABASE: ${{ secrets.RDS_DATABASE }}
-          RDS_USER: ${{ secrets.RDS_USER }}
-          RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: 1
 
