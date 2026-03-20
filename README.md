@@ -5,7 +5,7 @@ A full-stack Next.js application for reporting, tracking, and analyzing online s
 ## Tech Stack
 - **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS
 - **Backend**: Next.js API Routes + NextAuth.js v4
-- **Database**: AWS RDS (MySQL 8.x)
+- **Database**: AWS DynamoDB (NoSQL)
 - **State Management**: TanStack Query (React Query) v5
 - **Authentication**: NextAuth.js with JWT + bcrypt
 - **Deployment**: AWS EC2
@@ -55,40 +55,39 @@ A full-stack Next.js application for reporting, tracking, and analyzing online s
 
 ## Database Schema
 
-### Users Table
-```sql
-CREATE TABLE users (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  role ENUM('user', 'admin', 'moderator') DEFAULT 'user',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_email (email),
-  INDEX idx_role (role)
-);
-```
+### DynamoDB Tables
 
-### Scam Reports Table
-```sql
-CREATE TABLE scam_reports (
-  id VARCHAR(36) PRIMARY KEY,
-  scam_type VARCHAR(100) NOT NULL,
-  platform VARCHAR(100) NOT NULL,
-  description TEXT,
-  financial_loss DECIMAL(10,2),
-  currency VARCHAR(10),
-  victim_age VARCHAR(20),
-  reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  severity ENUM('low', 'medium', 'high'),
-  status ENUM('pending', 'verified', 'investigating', 'resolved', 'rejected'),
-  contact_method VARCHAR(100),
-  evidence TEXT,
-  region VARCHAR(100),
-  anonymous BOOLEAN DEFAULT FALSE
-);
-```
+#### Users Table
+- **Table Name**: `users`
+- **Partition Key**: `id` (String)
+- **GSI**: `email-index` with partition key `email` (String)
+- **Attributes**:
+  - `id`: Unique user identifier (UUID)
+  - `name`: User's full name
+  - `email`: User's email address (unique)
+  - `passwordHash`: Hashed password
+  - `role`: User role (user, admin, moderator)
+  - `createdAt`: ISO timestamp
+
+#### Scam Reports Table
+- **Table Name**: `scam_reports`
+- **Partition Key**: `id` (String)
+- **Attributes**:
+  - `id`: Unique report identifier (UUID)
+  - `scamType`: Type of scam
+  - `platform`: Platform where scam occurred
+  - `description`: Detailed description
+  - `financialLoss`: Amount lost (Number)
+  - `currency`: Currency code
+  - `victimAge`: Age group of victim
+  - `reportedAt`: ISO timestamp
+  - `severity`: low, medium, or high
+  - `status`: pending, verified, investigating, resolved, rejected
+  - `contactMethod`: How scammer contacted victim
+  - `evidence`: Evidence details
+  - `region`: Geographic region
+  - `anonymous`: Boolean flag
+  - `imageUrls`: Array of image URLs (optional)
 
 ---
 
@@ -98,11 +97,10 @@ CREATE TABLE scam_reports (
 |----------|-------------|----------|
 | `NEXTAUTH_URL` | App URL (e.g., http://localhost:3000) | Yes |
 | `NEXTAUTH_SECRET` | Secret for JWT signing (generate with `openssl rand -base64 32`) | Yes |
-| `RDS_HOST` | RDS endpoint | Yes |
-| `RDS_PORT` | MySQL port (default 3306) | Yes |
-| `RDS_DATABASE` | Database name | Yes |
-| `RDS_USER` | Database user | Yes |
-| `RDS_PASSWORD` | Database password | Yes |
+| `AWS_REGION` | AWS region (e.g., us-east-1) | Yes |
+| `AWS_ACCESS_KEY_ID` | AWS access key ID | Yes |
+| `AWS_SECRET_ACCESS_KEY` | AWS secret access key | Yes |
+| `AWS_SESSION_TOKEN` | AWS session token (optional) | No |
 | `USE_MOCK_DATA` | Set `true` for demo mode | No |
 | `NODE_ENV` | `production` for deployment | Yes |
 
@@ -132,18 +130,15 @@ Generate NextAuth secret:
 openssl rand -base64 32
 ```
 
-### 4. Initialize Database
-Run the SQL scripts to create tables:
-```bash
-# Connect to your MySQL database
-mysql -h your-rds-host -u your-user -p your-database
+### 4. Initialize DynamoDB Tables
+Create the required DynamoDB tables in your AWS account:
+- `users` table with partition key `id` and GSI on `email`
+- `scam_reports` table with partition key `id`
 
+You can use AWS Console, AWS CLI, or Infrastructure as Code (Terraform/CloudFormation).
 
 ### 5. Create First Admin User
-After registering a user, promote them to admin:
-```sql
-UPDATE users SET role = 'admin' WHERE email = 'your@email.com';
-```
+After registering a user, update their role to admin using AWS DynamoDB Console or CLI.
 
 ### 6. Run Development Server
 ```bash
@@ -267,10 +262,10 @@ Internet
     |-- NextAuth.js (JWT Sessions)
     |-- TanStack Query (Data Caching)
     |
-    |-- GET/POST /api/reports      --> [AWS RDS MySQL]
-    |-- GET /api/stats              --> [AWS RDS MySQL]
-    |-- GET/PATCH/DELETE /api/admin --> [AWS RDS MySQL]
-    `-- POST /api/auth/register     --> [AWS RDS MySQL]
+    |-- GET/POST /api/reports      --> [AWS DynamoDB]
+    |-- GET /api/stats              --> [AWS DynamoDB]
+    |-- GET/PATCH/DELETE /api/admin --> [AWS DynamoDB]
+    `-- POST /api/auth/register     --> [AWS DynamoDB]
 ```
 
 ---
@@ -305,13 +300,17 @@ npm run build
 npm start
 ```
 
-### Database Migrations
+### DynamoDB Management
 ```bash
-# Create users table
-mysql -h host -u user -p database < scripts/create-users-table.sql
+# Use AWS CLI to manage DynamoDB tables
+aws dynamodb list-tables --region us-east-1
 
-# Make user admin
-mysql -h host -u user -p database < scripts/make-admin.sql
+# Update user role to admin
+aws dynamodb update-item --table-name users \
+  --key '{"id": {"S": "user-id-here"}}' \
+  --update-expression "SET #role = :admin" \
+  --expression-attribute-names '{"#role": "role"}' \
+  --expression-attribute-values '{":admin": {"S": "admin"}}'
 ```
 
 ---

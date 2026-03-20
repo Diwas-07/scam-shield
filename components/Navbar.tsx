@@ -116,7 +116,7 @@ export default function Navbar() {
             <span className="text-xs font-mono text-acid">AWS POWERED</span>
           </div>
           <p className="text-xs text-muted leading-relaxed">
-            Backend by RDS MySQL. Deployed on EC2.
+            Backend by DynamoDB NoSQL. Deployed on EC2.
           </p>
         </div>
         <a 

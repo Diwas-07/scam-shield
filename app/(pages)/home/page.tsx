@@ -91,22 +91,28 @@ export default async function HomePage() {
             SYSTEM ACTIVE — {totalReports.toLocaleString()} incidents catalogued
           </div>
 
-          <h1 className="font-display font-black text-6xl leading-none text-frost mb-6">
+          <h1 className="font-display font-black text-6xl leading-none text-frost mb-6 text-center">
             FIGHT BACK
             <br />
             <span className="text-acid text-glow-acid">AGAINST SCAMS.</span>
           </h1>
           
-          <p className="text-muted-light text-xl max-w-2xl leading-relaxed mb-10">
+          <p className="text-muted-light text-xl max-w-2xl leading-relaxed mb-10 mx-auto text-center">
             A centralized platform to report, track, and understand online scams in real-time. 
-            Built for communities, powered by RDS MySQL on EC2, deployed for impact.
+            Built for communities, powered by AWS DynamoDB on EC2, deployed for impact.
           </p>
 
-          <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-4 flex-wrap justify-center">
             <Link href="/report">
               <button className="btn-acid px-8 py-4 rounded-xl text-sm tracking-wide flex items-center gap-2 font-display uppercase">
                 Report a Scam
                 <AlertTriangle size={16} />
+              </button>
+            </Link>
+            <Link href="/register">
+              <button className="btn-outline px-8 py-4 rounded-xl text-sm tracking-wide flex items-center gap-2 font-display uppercase">
+                Register Now
+                <ArrowRight size={16} />
               </button>
             </Link>
             <Link href="/dashboard">
@@ -250,15 +256,15 @@ export default async function HomePage() {
                 <Shield size={20} className="text-acid" />
               </div>
               <div>
-                <div className="font-mono text-xs text-acid mb-1 tracking-wider">AWS CLOUD ARCHITECTURE</div>
+                <div className="font-mono text-xs text-acid mb-1 tracking-wider">Backend by DynamoDB. Deployed on EC2.</div>
                 <h3 className="font-display font-bold text-frost mb-2">Production-Ready Cloud Infrastructure</h3>
                 <p className="text-muted text-sm leading-relaxed max-w-3xl">
-                  ScamShield leverages AWS RDS (MySQL) for reliable, scalable database storage of scam reports. 
+                  ScamShield leverages AWS DynamoDB for reliable, scalable NoSQL database storage of scam reports. 
                   The Next.js application is containerized and deployed via AWS EC2 for 
                   high availability. All API routes are secured and data is encrypted at rest.
                 </p>
                 <div className="flex items-center gap-6 mt-4 flex-wrap">
-                  {['AWS RDS', 'EC2', 'Next.js 14', 'TypeScript'].map(tech => (
+                  {['AWS DynamoDB', 'EC2', 'Next.js 14', 'TypeScript'].map(tech => (
                     <span key={tech} className="text-xs font-mono text-muted-light px-2 py-1 rounded-md"
                       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid #1E1E2A' }}>
                       {tech}
