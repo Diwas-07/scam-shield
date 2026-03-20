@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { dynamodb, TABLES } from '@/lib/dynamodb'
-import { ScanCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb'
+import { ScanCommand, UpdateCommand, DeleteCommand, GetCommand } from '@aws-sdk/lib-dynamodb'
+import { sendNotification } from '@/lib/lambda-api'
 
 // GET - List all reports for moderation
 export async function GET(request: Request) {
@@ -25,6 +26,8 @@ export async function GET(request: Request) {
     )
 
     const allReports = result.Items || []
+
+    console.log(allReports)
     
     // Sort by reportedAt descending
     const sortedReports = allReports.sort((a: any, b: any) => 
@@ -61,6 +64,17 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
+    // Get report details to fetch user email
+    const reportResult = await dynamodb.send(
+      new GetCommand({
+        TableName: TABLES.SCAM_REPORTS,
+        Key: { id: reportId },
+      })
+    )
+
+    const report = reportResult.Item
+
+    // Update report status
     await dynamodb.send(
       new UpdateCommand({
         TableName: TABLES.SCAM_REPORTS,
@@ -74,6 +88,13 @@ export async function PATCH(request: Request) {
         },
       })
     )
+
+    // Send notification via Lambda for verified/resolved status
+    if (report?.reporterEmail && (status === 'verified' || status === 'resolved')) {
+      sendNotification(reportId, report.reporterEmail, status as 'verified' | 'resolved')
+        .then(() => console.log(`Notification sent for report ${reportId}`))
+        .catch(err => console.error('Failed to send notification:', err))
+    }
 
     return NextResponse.json({ message: 'Report status updated' })
   } catch (error) {
@@ -112,3 +133,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+

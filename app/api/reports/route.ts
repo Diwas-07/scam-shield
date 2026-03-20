@@ -4,6 +4,7 @@ import { ScanCommand, PutCommand } from '@aws-sdk/lib-dynamodb'
 import { MOCK_REPORTS } from '@/lib/mockData'
 import { v4 as uuidv4 } from 'uuid'
 import { sendHighSeverityAlert } from '@/lib/sns'
+import { analyzeReport } from '@/lib/lambda-api'
 
 const USE_MOCK = !process.env.AWS_ACCESS_KEY_ID || process.env.USE_MOCK_DATA === 'true'
 
@@ -86,6 +87,15 @@ export async function POST(request: NextRequest) {
         Item: report,
       })
     )
+
+    // Trigger async analysis via Lambda
+    analyzeReport(report.id)
+      .then(result => {
+        console.log(`Report ${report.id} analyzed:`, result)
+      })
+      .catch(err => {
+        console.error(`Failed to analyze report ${report.id}:`, err)
+      })
 
     // Send SNS alert for high-severity reports
     if (report.severity === 'high') {
