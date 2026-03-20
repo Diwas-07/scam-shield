@@ -1,11 +1,13 @@
 import Link from 'next/link'
-import { NextRequest } from 'next/server'
 import { Shield, AlertTriangle, BarChart3, BookOpen, ArrowRight, TrendingUp, Users, Globe } from 'lucide-react'
 
 async function getStats() {
   try {
-    const { GET } = await import('@/app/api/stats/route')
-    const res = await GET()
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+    const res = await fetch(`${baseUrl}/api/stats`, {
+      cache: 'no-store',
+    })
+    if (!res.ok) return null
     return res.json()
   } catch {
     return null
@@ -14,9 +16,11 @@ async function getStats() {
 
 async function getRecentReports(limit = 7) {
   try {
-    const { GET } = await import('@/app/api/reports/route')
-    const url = new URL(`http://n/?limit=${limit}&page=1`)
-    const res = await GET(new NextRequest(url))
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+    const res = await fetch(`${baseUrl}/api/reports?limit=${limit}&page=1`, {
+      cache: 'no-store',
+    })
+    if (!res.ok) return []
     const data = await res.json()
     return data.reports ?? []
   } catch {
